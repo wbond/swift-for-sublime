@@ -1,0 +1,199 @@
+%YAML 1.2
+---
+# http://www.sublimetext.com/docs/3/syntax.html
+
+# This file is a porting of the Swift Language Reference
+# https://docs.swift.org/swift-book/ReferenceManual/zzSummaryOfTheGrammar.html
+
+name: Swift
+scope: source.swift
+
+file_extensions:
+  - swift
+
+variables:
+  identifier_head_unicode: \x00A8\x00AA\x00AD\x00AF\x00B2–\x00B5\x00B7–\x00BA\x00BC–\x00BE\x00C0–\x00D6\x00D8–\x00F6\x00F8–\x00FF\x0100–\x02FF\x0370–\x167F\x1681–\x180D\x180F–\x1DBF\x1E00–\x1FFF\x200B–\x200D\x202A–\x202E\x203F–\x2040\x2054\x2060–\x206F\x2070–\x20CF\x2100–\x218F\x2460–\x24FF\x2776–\x2793\x2C00–\x2DFF\x2E80–\x2FFF\x3004–\x3007\x3021–\x302F\x3031–\x303F\x3040–\xD7FF\xF900–\xFD3D\xFD40–\xFDCF\xFDF0–\xFE1F\xFE30–\xFE44\xFE47–\xFFFD\x10000–\x1FFFD\x20000–\x2FFFD\x30000–\x3FFFD\x40000–\x4FFFD\x50000–\x5FFFD\x60000–\x6FFFD\x70000–\x7FFFD\x80000–\x8FFFD\x90000–\x9FFFD\xA0000–\xAFFFD\xB0000–\xBFFFD\xC0000–\xCFFFD\xD0000–\xDFFFD\xE0000–\xEFFFD
+  identifier_head: '[a-zA-Z_{{identifier_head_unicode}}]'
+  identifier_character: '[0-9\x0300–\x036F\x1DC0–\x1DFF\x20D0–\x20FF\xFE20–\xFE2F{{identifier_head}}]'
+  line_break: '(?:\x0D\x0A?|\x0A)'
+  inline_space: '[\x09\x20]'
+
+contexts:
+  main:
+    - include: expression
+
+  whitespace:
+    - include: line-break
+    - include: inline-spaces
+    - include: comment
+    - include: multiline-comment
+    - match: '[\x00\x0B\x0C]+'
+
+  line-break:
+    - match: '{{line_break}}'
+
+  inline-spaces:
+    - match: '{{inline_space}}+'
+
+  comment:
+    - match: //
+      scope: punctuation.definition.comment.begin.swift
+      push:
+        - meta_scope: comment.line.swift
+        # TODO: add MARK section navigation
+        - match: '{{line_break}}'
+          pop: 1
+
+  multiline-comment:
+    - match: '/\*'
+      scope: punctuation.definition.comment.begin.swift
+      push:
+        - meta_scope: comment.block.swift
+        - include: multiline-comment
+        - match: '\*/'
+          scope: punctuation.definition.comment.end.swift
+          pop: 1
+
+  implicit-parameter-name:
+    - match: '\$[0-9]+\b'
+
+  property-wrapper-projection:
+    - match: '\${{identifier_character}}+'
+
+  identifier:
+    - match: '\b{{identifier_head}}{{identifier_character}}*'
+      scope: variable
+    - match: '`{{identifier_head}}{{identifier_character}}*`'
+      scope: variable
+    - include: implicit-parameter-name
+    - include: property-wrapper-projection
+
+  integer-literal:
+    - match: \b(0b)([01][01_]*)
+      scope: meta.number.integer.binary.swift
+      captures:
+        1: constant.numeric.base.swift
+        2: constant.numeric.value.swift
+    - match: \b(0o)([0-7][0-7_]*)
+      scope: meta.number.integer.octal.swift
+      captures:
+        1: constant.numeric.base.swift
+        2: constant.numeric.value.swift
+    - match: \b(0x)([0-9a-fA-F][0-9a-fA-F_]*)
+      scope: meta.number.integer.hexadecimal.swift
+      captures:
+        1: constant.numeric.base.swift
+        2: constant.numeric.value.swift
+    - match: \b[0-9][0-9_]*
+      scope: meta.number.integer.decimal.swift constant.numeric.value.swift
+
+  floating-point-literal:
+    - match: \b[0-9][0-9_]*(\.)[0-9][0-9_]*(?:[eE][\-+]?[0-9][0-9_]*)?
+      scope: meta.number.float.decimal.swift constant.numeric.value.swift
+      captures:
+        1: punctuation.separator.decimal.swift
+    - match: \b(0x)([0-9a-fA-F][0-9a-fA-F_]*(\.)[0-9a-fA-F][0-9a-fA-F_]*(?:[pP][\-+]?[0-9][0-9_]*)?)
+      scope: meta.number.float.hexadecimal.swift 
+      captures:
+        1: constant.numeric.base.swift
+        2: constant.numeric.value.swift
+        3: punctuation.separator.decimal.swift
+
+  string-literal:
+    - match: '#+"""'
+      scope: punctuation.definition.string.begin.swift
+      push:
+        - meta_scope: meta.string.swift string.quoted.double.block.swift
+        - match: '\\#+[0\\tnr"'']'
+          scope: constant.character.escape.swift
+        - match: '\\#+u\{[0-9a-fA-F]{1,8}\}'
+          scope: constant.character.escape.unicode.swift
+        - match: '\\#+\('
+          scope: punctuation.section.interpolation.begin.swift
+          push:
+            - clear_scopes: 1
+            - meta_scope: meta.interpolation.swift
+            - match: '\)'
+              scope: punctuation.section.interpolation.end.swift
+              pop: 1
+        - match: '\\{{inline_space}}*{{line_break}}'
+          scope: punctuation.separator.continuation.line.swift
+        - match: '"""#+'
+          scope: punctuation.definition.string.end.swift
+          pop: 1
+    - match: '"""'
+      scope: punctuation.definition.string.begin.swift
+      push:
+        - meta_scope: meta.string.swift string.quoted.double.block.swift
+        - match: '\\[0\\tnr"'']'
+          scope: constant.character.escape.swift
+        - match: '\\u\{[0-9a-fA-F]{1,8}\}'
+          scope: constant.character.escape.unicode.swift
+        - match: '\\\('
+          scope: punctuation.section.interpolation.begin.swift
+          push:
+            - clear_scopes: 1
+            - meta_scope: meta.interpolation.swift
+            - include: expression
+            - match: '\)'
+              scope: punctuation.section.interpolation.end.swift
+              pop: 1
+        - match: '\\{{inline_space}}*{{line_break}}'
+          scope: punctuation.separator.continuation.line.swift
+        - match: '"""'
+          scope: punctuation.definition.string.end.swift
+          pop: 1
+    - match: '#+"'
+      scope: punctuation.definition.string.begin.swift
+      push:
+        - meta_scope: meta.string.swift string.quoted.double.swift
+        - match: '\\#+[0\\tnr"'']'
+          scope: constant.character.escape.swift
+        - match: '\\#+u\{[0-9a-fA-F]{1,8}\}'
+          scope: constant.character.escape.unicode.swift
+        - match: '\\#+\('
+          scope: punctuation.section.interpolation.begin.swift
+          push:
+            - clear_scopes: 1
+            - meta_scope: meta.interpolation.swift
+            - include: expression
+            - match: '\)'
+              scope: punctuation.section.interpolation.end.swift
+              pop: 1
+        - match: '{{line_break}}'
+          scope: invalid.illegal.unclosed-string.swift
+          pop: 1
+        - match: '"#+'
+          scope: punctuation.definition.string.end.swift
+          pop: 1
+    - match: '"'
+      scope: punctuation.definition.string.begin.swift
+      push:
+        - meta_scope: meta.string.swift string.quoted.double.swift
+        - match: '\\[0\\tnr"'']'
+          scope: constant.character.escape.swift
+        - match: '\\u\{[0-9a-fA-F]{1,8}\}'
+          scope: constant.character.escape.unicode.swift
+        - match: '\\\('
+          scope: punctuation.section.interpolation.begin.swift
+          push:
+            - clear_scopes: 1
+            - meta_scope: meta.interpolation.swift
+            - include: expression
+            - match: '\)'
+              scope: punctuation.section.interpolation.end.swift
+              pop: 1
+        - match: '\\'
+          scope: invalid.illegal.unexpected-text.swift
+        - match: '{{line_break}}'
+          scope: invalid.illegal.unclosed-string.swift
+          pop: 1
+        - match: '"'
+          scope: punctuation.definition.string.end.swift
+          pop: 1
+
+  expression:
+    - include: whitespace
+    - include: string-literal
+    - include: floating-point-literal
+    - include: integer-literal
